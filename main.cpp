@@ -8,6 +8,7 @@
 #include <ctime>
 #include <algorithm>
 
+
 using namespace std;
 
 
@@ -83,12 +84,71 @@ void k_means(vector<vector<double>>& points, int k, vector<vector<double>>& cent
     }
 }
 
+// Function to calculate the lower and upper bounds for the distance between each point and each centroid
+void calculate_bounds(vector<vector<double>>& points, vector<vector<double>>& centroids, vector<double>& lower_bounds, vector<double>& upper_bounds) {
+    int n = points.size();
+    int k = centroids.size();
+    for (int i = 0; i < n; ++i) {
+        lower_bounds[i] = 0.0;
+        upper_bounds[i] = distance(points[i], centroids[0]);
+        for (int j = 1; j < k; ++j) {
+            double d = distance(points[i], centroids[j]);
+            if (d < lower_bounds[i]) {
+                lower_bounds[i] = d;
+            } else if (d > upper_bounds[i]) {
+                upper_bounds[i] = d;
+            }
+        }
+    }
+}
+
+// Function to assign each point to its nearest centroid using the Elkan algorithm
+void assign_clusters_elkan(vector<vector<double>>& points, vector<vector<double>>& centroids, vector<int>& clusters, vector<double>& lower_bounds, vector<double>& upper_bounds) {
+    int n = points.size();
+    int k = centroids.size();
+    vector<vector<double>> distance_table(n, vector<double>(k, 0.0));
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < k; ++j) {
+            distance_table[i][j] = distance(points[i], centroids[j]);
+        }
+    }
+    for (int i = 0; i < n; ++i) {
+        int cluster = clusters[i];
+        double min_distance = distance(points[i], centroids[cluster]);
+        for (int j = 0; j < k; ++j) {
+            if (lower_bounds[i] <= distance_table[i][j] && distance_table[i][j] <= upper_bounds[i]) {
+                double d = distance(points[i], centroids[j]);
+                if (d < min_distance) {
+                    min_distance = d;
+                    cluster = j;
+                }
+            }
+        }
+        clusters[i] = cluster;
+    }
+}
+
+// Function to run the k-means algorithm with the Elkan algorithm
+void k_means_elkan(vector<vector<double>>& points, int k, vector<vector<double>>& centroids, vector<int>& clusters, int max_iterations) {
+    initialize_centroids(points, centroids, k);
+    int n = points.size();
+    clusters.resize(n, -1);
+    vector<double> lower_bounds(n, 0.0);
+    vector<double> upper_bounds(n, 0.0);
+    calculate_bounds(points, centroids, lower_bounds, upper_bounds);
+    for (int iter = 0; iter < max_iterations; ++iter) {
+        assign_clusters_elkan(points, centroids, clusters, lower_bounds, upper_bounds);
+        update_centroids(points, centroids, clusters);
+        calculate_bounds(points, centroids, lower_bounds, upper_bounds);
+    }
+}
+
+
 int main() {
     // Load the CSV file
     ifstream file("data.csv");
     string line;
     vector<vector<double>> points;
-
     // skip the first line of the file
     std::getline(file, line);
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -108,8 +168,11 @@ int main() {
     int max_iterations = 100; // maximum number of iterations
     vector<vector<double>> centroids; // centroids of the clusters
     vector<int> clusters; // cluster assignment for each point
-    k_means(points, k, centroids, clusters, max_iterations);
 
+    k_means(points, k, centroids, clusters, max_iterations);
+    // Apply k-means algorithm with Elkan algorithm
+    k_means_elkan(points, k, centroids, clusters, max_iterations);
+    
     // Write the results to a CSV file
     ofstream output_file("results.csv");
     output_file << "Feature1,Feature2,Feature3,Feature4,Feature5,Feature6,Feature7,Feature8,Feature9,Feature10,Feature11,Feature12,Feature13,Cluster\n";

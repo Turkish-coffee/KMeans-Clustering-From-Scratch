@@ -1,5 +1,4 @@
 #!/bin/zsh
-g++ main.cpp -o prog
+g++ main.cpp -std=c++11 -o prog
 ./prog
-source /opt/miniconda3/bin/activate MLenv
 python3 ./test.py 
